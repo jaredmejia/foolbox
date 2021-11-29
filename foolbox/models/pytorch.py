@@ -6,6 +6,10 @@ from ..types import BoundsInput, Preprocessing
 
 from .base import ModelWithPreprocessing
 
+from typing import TypeVar
+
+T = TypeVar("T")
+
 
 def get_device(device: Any) -> Any:
     import torch
@@ -55,3 +59,25 @@ class PyTorchModel(ModelWithPreprocessing):
 
         self.data_format = "channels_first"
         self.device = device
+
+
+class NBDTModel(PyTorchModel):
+    def __init__(
+        self,
+        model: Any,
+        bounds: BoundsInput,
+        device: Any = None,
+        preprocessing: Preprocessing = None,
+    ):
+        device = get_device(device)
+        self.model = model.to(device)
+
+        super().__init__(
+            model, bounds=bounds, device=device, preprocessing=preprocessing
+        )
+
+    def __call__(self, inputs: T) -> T:
+        x, restore_type = ep.astensor_(inputs)
+        y = self._preprocess(x)
+        z = self.model.forward_with_decisions(y.raw)[1]
+        return z
